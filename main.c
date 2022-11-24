@@ -7,9 +7,10 @@
 const int screenHeight = 720;
 const int screenWidth = 1280;
 const int targetFPS = 60;
-const float mapSectionMargin = 0.2; // how many % magin from other map sections (1 = 100%)
-const int iterations = 4;           // iterations for the generator
-
+const float mapSectionMargin = 0.4; // how many % magin from other map sections (1 = 100%)
+const int iterations = 3;           // iterations for the generator
+const int xySplitRandomizer = 8;
+int xySplitRandomizerThreshold = xySplitRandomizer/2;      // will get bigger/smaller depending on what the previous value were, this is used to avoid too many x/y slices happening after one another
 typedef struct mapSection_t
 {
     Vector2 startPos;
@@ -27,12 +28,18 @@ void FreeBSPMap(int iterationCount, int desiredIterations, mapSection_t *mapSect
     }
 }
 
-void DrawBSPMapSections(int iterationCount, int desiredIterations, mapSection_t mapSection)
+void DrawBSPMapSections(int iterationCount, int desiredIterations, mapSection_t mapSection, Color color)
 {
     // printf("draw iteration: %d\n", iterationCount);
     //  getchar();
     //  fflush(stdin);
-    DrawLineV(mapSection.splitMapSections[0].endPos, mapSection.splitMapSections[1].startPos, RED);
+    DrawLineV(mapSection.splitMapSections[0].endPos, mapSection.splitMapSections[1].startPos, color);
+    /*color = (Color){
+        .a = color.a + 1,
+        .b = color.b + 1,
+        .g = color.g + 1,
+        .r = color.r + 1
+    };*/
     if (iterationCount >= desiredIterations)
     {
     }
@@ -40,9 +47,9 @@ void DrawBSPMapSections(int iterationCount, int desiredIterations, mapSection_t 
     {
         iterationCount++;
 
-        DrawBSPMapSections(iterationCount, desiredIterations, mapSection.splitMapSections[0]);
+        DrawBSPMapSections(iterationCount, desiredIterations, mapSection.splitMapSections[0], color);
         // puts("wee");
-        DrawBSPMapSections(iterationCount, desiredIterations, mapSection.splitMapSections[1]);
+        DrawBSPMapSections(iterationCount, desiredIterations, mapSection.splitMapSections[1], color);
         // puts("wee 2");
     }
 }
@@ -52,12 +59,15 @@ void GenerateBSPMapSections(int iterationCount, int desiredIterations, mapSectio
     mapSection->splitMapSections = (mapSection_t *)calloc(2, sizeof(mapSection_t));
     printf("gen iteration: %d\n", iterationCount);
 
-    if (rand() % 2)
+    if (rand() % xySplitRandomizer >= xySplitRandomizerThreshold)
     {
+        xySplitRandomizerThreshold++;
         puts("split in x");
         // splits in random place with atleast a 20% margin to the top/bottom
         // float xSplit = (((rand() % (int)(mapSection->endPos.x * (1 - (mapSectionMargin * 2)))) * 100) / 100) + (mapSection->endPos.x * mapSectionMargin);
-        float xSplit = (mapSection->startPos.x + mapSection->endPos.x) / 2;
+        float xWidth = mapSection->endPos.x - mapSection->startPos.x;
+        float xSplit = (((rand() % (int)((xWidth) * (1 - (0.8)))) * 100) / 100) + mapSection->startPos.x + ((xWidth) * 0.4);
+        // float xSplit = (mapSection->startPos.x + mapSection->endPos.x) / 2;
         mapSection->splitMapSections[0] = (mapSection_t){
             .startPos = (Vector2){mapSection->startPos.x, mapSection->startPos.y},
             .endPos = (Vector2){xSplit, mapSection->endPos.y}};
@@ -68,10 +78,14 @@ void GenerateBSPMapSections(int iterationCount, int desiredIterations, mapSectio
     }
     else
     {
+        xySplitRandomizerThreshold--;
         puts("split in y");
         // splits in random place with atleast a 20% margin to the left/right
         // float ySplit = (((rand() % (int)(mapSection->endPos.y * ( 1 - (mapSectionMargin * 2)))) * 100) / 100) + (mapSection->endPos.y * mapSectionMargin);
-        float ySplit = (mapSection->startPos.y + mapSection->endPos.y) / 2;
+        float yWidth = mapSection->endPos.y - mapSection->startPos.y;
+        float ySplit = (((rand() % (int)((yWidth) * (1 - (0.8)))) * 100) / 100) + mapSection->startPos.y + ((yWidth) * 0.4);
+
+        // float ySplit = (mapSection->startPos.y + mapSection->endPos.y) / 2;
         mapSection->splitMapSections[0] = (mapSection_t){
             .startPos = (Vector2){mapSection->startPos.x, mapSection->startPos.y},
             .endPos = (Vector2){mapSection->endPos.x, ySplit}};
@@ -100,18 +114,17 @@ int main()
     InitWindow(screenWidth, screenHeight, "map generation test");
     SetTargetFPS(targetFPS);
 
-    int desiredIterations = 4;
     mapSection_t map = (mapSection_t){
         .startPos = (Vector2){0, 0},
         .endPos = (Vector2){screenWidth, screenHeight},
         .splitMapSections = NULL};
 
-    GenerateBSPMapSections(0, desiredIterations, &map);
+    GenerateBSPMapSections(0, iterations, &map);
     while (!WindowShouldClose())
     {
         BeginDrawing();
         ClearBackground(BLACK);
-        DrawBSPMapSections(0, desiredIterations, map);
+        DrawBSPMapSections(0, iterations, map, RED);
         EndDrawing();
     }
     CloseWindow();
