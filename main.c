@@ -10,7 +10,7 @@ const int targetFPS = 60;
 const float mapSectionMargin = 0.4; // how many % magin from other map sections (1 = 100%)
 const int iterations = 3;           // iterations for the generator
 const int xySplitRandomizer = 8;
-int xySplitRandomizerThreshold = xySplitRandomizer/2;      // will get bigger/smaller depending on what the previous value were, this is used to avoid too many x/y slices happening after one another
+int xySplitRandomizerThreshold = xySplitRandomizer / 2; // will get bigger/smaller depending on what the previous value were, this is used to avoid too many x/y slices happening after one another
 typedef struct mapSection_t
 {
     Vector2 startPos;
@@ -64,10 +64,10 @@ void GenerateBSPMapSections(int iterationCount, int desiredIterations, mapSectio
         xySplitRandomizerThreshold++;
         puts("split in x");
         // splits in random place with atleast a 20% margin to the top/bottom
-        // float xSplit = (((rand() % (int)(mapSection->endPos.x * (1 - (mapSectionMargin * 2)))) * 100) / 100) + (mapSection->endPos.x * mapSectionMargin);
         float xWidth = mapSection->endPos.x - mapSection->startPos.x;
-        float xSplit = (((rand() % (int)((xWidth) * (1 - (0.8)))) * 100) / 100) + mapSection->startPos.x + ((xWidth) * 0.4);
-        // float xSplit = (mapSection->startPos.x + mapSection->endPos.x) / 2;
+        float xSplit = (((rand() % (int)(xWidth * (1 - (mapSectionMargin * 2)))) * 100) / 100) + mapSection->startPos.x + (xWidth * mapSectionMargin);
+        // float xSplit = (((rand() % (int)((xWidth) * (1 - (0.8)))) * 100) / 100) + mapSection->startPos.x + ((xWidth) * 0.4);
+        //  float xSplit = (mapSection->startPos.x + mapSection->endPos.x) / 2;
         mapSection->splitMapSections[0] = (mapSection_t){
             .startPos = (Vector2){mapSection->startPos.x, mapSection->startPos.y},
             .endPos = (Vector2){xSplit, mapSection->endPos.y}};
@@ -81,9 +81,9 @@ void GenerateBSPMapSections(int iterationCount, int desiredIterations, mapSectio
         xySplitRandomizerThreshold--;
         puts("split in y");
         // splits in random place with atleast a 20% margin to the left/right
-        // float ySplit = (((rand() % (int)(mapSection->endPos.y * ( 1 - (mapSectionMargin * 2)))) * 100) / 100) + (mapSection->endPos.y * mapSectionMargin);
         float yWidth = mapSection->endPos.y - mapSection->startPos.y;
-        float ySplit = (((rand() % (int)((yWidth) * (1 - (0.8)))) * 100) / 100) + mapSection->startPos.y + ((yWidth) * 0.4);
+        float ySplit = (((rand() % (int)(yWidth * (1 - (mapSectionMargin * 2)))) * 100) / 100) + mapSection->startPos.y + (yWidth * mapSectionMargin);
+        // float ySplit = (((rand() % (int)((yWidth) * (1 - (0.8)))) * 100) / 100) + mapSection->startPos.y + ((yWidth) * 0.4);
 
         // float ySplit = (mapSection->startPos.y + mapSection->endPos.y) / 2;
         mapSection->splitMapSections[0] = (mapSection_t){
