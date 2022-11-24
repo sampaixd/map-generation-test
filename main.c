@@ -3,10 +3,12 @@
 #include <time.h>
 #include <stdlib.h>
 #include <stdio.h>
-
+// TODO make mapSectionMargin work to modify room sizes, add rooms and connect them
 const int screenHeight = 720;
 const int screenWidth = 1280;
 const int targetFPS = 60;
+const float mapSectionMargin = 0.2; // how many % magin from other map sections (1 = 100%)
+const int iterations = 4;           // iterations for the generator
 
 typedef struct mapSection_t
 {
@@ -54,8 +56,8 @@ void GenerateBSPMapSections(int iterationCount, int desiredIterations, mapSectio
     {
         puts("split in x");
         // splits in random place with atleast a 20% margin to the top/bottom
-        float xSplit = (((rand() % (int)(mapSection->endPos.x * 0.6)) * 100) / 100) + (mapSection->endPos.x * 0.2);
-        // float xSplit = (mapSection->startPos.x + mapSection->endPos.x) / 2;
+        // float xSplit = (((rand() % (int)(mapSection->endPos.x * (1 - (mapSectionMargin * 2)))) * 100) / 100) + (mapSection->endPos.x * mapSectionMargin);
+        float xSplit = (mapSection->startPos.x + mapSection->endPos.x) / 2;
         mapSection->splitMapSections[0] = (mapSection_t){
             .startPos = (Vector2){mapSection->startPos.x, mapSection->startPos.y},
             .endPos = (Vector2){xSplit, mapSection->endPos.y}};
@@ -68,7 +70,7 @@ void GenerateBSPMapSections(int iterationCount, int desiredIterations, mapSectio
     {
         puts("split in y");
         // splits in random place with atleast a 20% margin to the left/right
-        // float ySplit = (((rand() % (int)(mapSection->endPos.y * 0.6)) * 100) / 100) + (mapSection->endPos.y * 0.2);
+        // float ySplit = (((rand() % (int)(mapSection->endPos.y * ( 1 - (mapSectionMargin * 2)))) * 100) / 100) + (mapSection->endPos.y * mapSectionMargin);
         float ySplit = (mapSection->startPos.y + mapSection->endPos.y) / 2;
         mapSection->splitMapSections[0] = (mapSection_t){
             .startPos = (Vector2){mapSection->startPos.x, mapSection->startPos.y},
