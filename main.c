@@ -4,15 +4,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 // TODO make mapSectionMargin work to modify room sizes, add rooms and connect them
-const int screenHeight = 1080;
-const int screenWidth = 1920;
+const int screenHeight = 720;
+const int screenWidth = 1280;
 const int targetFPS = 60;
 const float mapSectionMarginPercentage = 0.4; // how many % magin from other map sections (1 = 100%)
 const int iterations = 3;                     // iterations for the generator
 const int xySplitRandomizer = 8;
 int xySplitRandomizerThreshold = xySplitRandomizer / 2; // will get bigger/smaller depending on the previous split, this is used to avoid too many x/y slices happening after one another
 const float roomMarginPercentage = 0.1;                 // 1% percision, will be rounded afterwards
-const float roomMinSizePercentage = 0.1;                // 1% percision, will be rounded afterwards
+const float roomMinSizePercentage = 0.5;                // 1% percision, will be rounded afterwards
 
 typedef struct rect_t
 {
@@ -45,7 +45,7 @@ void FreeBSPMap(int iterationCount, int desiredIterations, mapSection_t *mapSect
 
 Vector2 GetRectSize(rect_t rect)
 {
-    return (Vector2) { rect.endPos.x - rect.startPos.x , rect.endPos.y - rect.startPos.y};
+    return (Vector2){rect.endPos.x - rect.startPos.x, rect.endPos.y - rect.startPos.y};
 }
 
 void DrawRoom(rect_t room)
@@ -94,24 +94,32 @@ void GenerateRoom(rect_t *room, rect_t area)
     float yWidth = area.endPos.y - area.startPos.y;
     Vector2 startPos = {
         // base value is beginning of the section + margin, then adds a random sum between 0 and the map section width - margin and min size (in order to make sure there will always be a min size available)
-        area.startPos.x + (xWidth * roomMarginPercentage) + xWidth * ((rand() % (int)(100 - (roomMarginPercentage * 100) - (roomMinSizePercentage * 100))) / 100),
-        area.startPos.y + (yWidth * roomMarginPercentage) + yWidth * ((rand() % (int)(100 - (roomMarginPercentage * 100) - (roomMinSizePercentage * 100))) / 100)};
+        area.startPos.x + (xWidth * roomMarginPercentage) + xWidth * ((float)(rand() % (int)(100 - (2 * roomMarginPercentage * 100) - (roomMinSizePercentage * 100))) / 100),
+        area.startPos.y + (yWidth * roomMarginPercentage) + yWidth * ((float)(rand() % (int)(100 - (2 * roomMarginPercentage * 100) - (roomMinSizePercentage * 100))) / 100)};
+
+        int xRandExtraSizeMaxPercentage = 100 - (roomMinSizePercentage * 100) - (roomMarginPercentage * 100) - (float)(((startPos.x - area.startPos.x) / xWidth) * 100);
+        float xEndPosExtraSize = xRandExtraSizeMaxPercentage > 0 ? xWidth * (float)((rand() % xRandExtraSizeMaxPercentage) / 100) : 0;
+
+        int yRandExtraSizeMaxPercentage = 100 - (roomMinSizePercentage * 100) - (roomMarginPercentage * 100) - (float)(((startPos.y - area.startPos.y) / yWidth) * 100);
+        float yEndPosExtraSize = yRandExtraSizeMaxPercentage > 0 ? yWidth * (float)((rand() % yRandExtraSizeMaxPercentage) / 100) : 0;
+
     Vector2 endPos = {
         // base value is map section width * min size, then adds a random value between 0 and the distance from the startpos of the room to the end of the map section - margin
-        startPos.x + (xWidth * roomMinSizePercentage) + (xWidth * ((float)(rand() % (int)(100 - (((startPos.x - area.startPos.x) / xWidth) * 100) - (roomMarginPercentage * 100))) / 100)),
-        startPos.y + (yWidth * roomMinSizePercentage) + (yWidth * ((float)(rand() % (int)(100 - (((startPos.y - area.startPos.y) / yWidth) * 100) - (roomMarginPercentage * 100))) / 100))};
+        startPos.x + (xWidth * roomMinSizePercentage) + xEndPosExtraSize,
+        startPos.y + (yWidth * roomMinSizePercentage) + yEndPosExtraSize};
     printf("map section start pos: %.2f, %.2f\n"
            "map section end pos:   %.2f, %.2f\n"
            "map section width:     %.2f, %.2f\n"
-           //"test:                  %.17f\n"
+           "test:                  %.17f\n"
+           "test 2:                %.17f\n"
            "room: \n"
            "start pos: %.2f, %.2f\n"
            "end pos:   %.2f, %.2f\n",
            area.startPos.x, area.startPos.y,
            area.endPos.x, area.endPos.y,
            xWidth, yWidth,
-           //(startPos.x - area.startPos.x) / xWidth,
-           // xWidth * ((float)(rand() % (int)(100 - (roomMarginPercentage * 100) - (roomMinSizePercentage * 100))) / 100),
+           ((float)(int)(100 - (roomMinSizePercentage * 100) - (roomMarginPercentage * 100) - (float)(((startPos.x - area.startPos.x) / xWidth) * 100))),
+           (float)(((startPos.x - area.startPos.x) / xWidth) * 100),
            startPos.x, startPos.y,
            endPos.x, endPos.y);
     *room = (rect_t){
@@ -191,6 +199,10 @@ int main()
     {
         BeginDrawing();
         ClearBackground(BLACK);
+        if (IsKeyPressed(KEY_SPACE))
+        {
+            GenerateBSPMapSections(0, iterations, &map);
+        }
         DrawBSPMapSections(0, iterations, map, RED);
         EndDrawing();
     }
