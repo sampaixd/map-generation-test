@@ -7,7 +7,6 @@
 #define DEV_MODE // comment out to remove dev text
 
 // TODO continue work with corridors
-// corridors split on x axis currently does not work, figure out why and fix it
 // make corridors work with all iterations of the map generation
 // (currently only works with the last iteration)
 // split up the large one line equations to multiple smaller lines for improved readability
