@@ -10,6 +10,7 @@
 // corridors split on x axis currently does not work, figure out why and fix it
 // make corridors work with all iterations of the map generation
 // (currently only works with the last iteration)
+// split up the large one line equations to multiple smaller lines for improved readability
 const int screenHeight = 720;
 const int screenWidth = 1280;
 const int targetFPS = 60;
@@ -50,38 +51,6 @@ void FreeBSPMap(int iterationCount, int desiredIterations, mapSection_t *mapSect
     }
 }
 
-void GenerateCorridor(bool isSlicedOnXAxis, rect_t room1, rect_t room2, rect_t *corridor)
-{
-    float intersectStart = 0;
-    float intersectEnd = 0;
-    if (isSlicedOnXAxis)
-    {
-        // gets the section where they are adjacent to one another
-        intersectStart = room1.startPos.y > room2.startPos.y ? room1.startPos.y : room2.startPos.y;
-        intersectEnd = room1.endPos.y < room2.endPos.y ? room1.endPos.y : room2.endPos.y;
-    }
-    else
-    {
-        intersectStart = room1.startPos.x > room2.startPos.x ? room1.startPos.x : room2.startPos.x;
-        intersectEnd = room1.endPos.x < room2.endPos.x ? room1.endPos.x : room2.endPos.x;
-    }
-    float intersectWidth = intersectEnd - intersectStart;
-    float randPercent = ((float)(rand() % 100) / 100);
-    // if the start posision + corridor width would go outside the intersecting bonds, subtract the corridor width from total
-    float corridorStartPoint = randPercent * intersectWidth > intersectWidth - corridorWidth ? intersectStart + (intersectWidth * randPercent) - corridorWidth : intersectStart + intersectWidth * randPercent;
-    if (isSlicedOnXAxis)
-    {
-        corridor->startPos = (Vector2){room1.endPos.x, corridorStartPoint};
-        corridor->endPos = (Vector2){room2.startPos.x, corridorStartPoint + corridorWidth};
-        printf("room 1 end pos x: %f, room 2 start pos x: %f\n", room1.endPos.x, room2.startPos.x);
-    }
-    else
-    {
-        corridor->startPos = (Vector2){corridorStartPoint, room1.endPos.y};
-        corridor->endPos = (Vector2){corridorStartPoint + corridorWidth, room2.startPos.y};
-    }
-}
-
 Vector2 GetRectSize(rect_t rect)
 {
     return (Vector2){rect.endPos.x - rect.startPos.x, rect.endPos.y - rect.startPos.y};
@@ -92,7 +61,7 @@ void DrawCorridor(rect_t corridor)
     Vector2 size = GetRectSize(corridor);
     DrawRectangleV(corridor.startPos, size, PINK);
 #ifdef DEV_MODE
-    DrawText("wee", corridor.startPos.x, corridor.startPos.y, 20, PURPLE);
+    DrawText(TextFormat("size: x:%f, y:%f", size.x, size.y), corridor.startPos.x, corridor.startPos.y, 20, PURPLE);
 #endif
 }
 
@@ -138,6 +107,52 @@ void DrawBSPMapSections(int iterationCount, int desiredIterations, mapSection_t 
              mapSection.splitMapSections[1].area.startPos.x,
              mapSection.splitMapSections[1].area.startPos.y, 10, LIME);
 #endif
+}
+
+void GenerateCorridor(bool isSlicedOnXAxis, rect_t room1, rect_t room2, rect_t *corridor)
+{
+#ifdef DEV_MODE
+    printf("is sliced on x axis: %d\n", isSlicedOnXAxis);
+#endif
+    float intersectStart = 0;
+    float intersectEnd = 0;
+    if (isSlicedOnXAxis)
+    {
+        // gets the section where they are adjacent to one another
+        intersectStart = room1.startPos.y > room2.startPos.y ? room1.startPos.y : room2.startPos.y;
+        intersectEnd = room1.endPos.y < room2.endPos.y ? room1.endPos.y : room2.endPos.y;
+    }
+    else
+    {
+        intersectStart = room1.startPos.x > room2.startPos.x ? room1.startPos.x : room2.startPos.x;
+        intersectEnd = room1.endPos.x < room2.endPos.x ? room1.endPos.x : room2.endPos.x;
+    }
+    float intersectWidth = intersectEnd - intersectStart;
+    float randPercent = ((float)(rand() % 100) / 100);
+    // if the start posision + corridor width would go outside the intersecting bonds, subtract the corridor width from total
+    float corridorStartPoint;
+    // if the corridor would go outside intersecting bounds
+    if (randPercent * intersectWidth > intersectWidth - corridorWidth)
+    {
+        corridorStartPoint = intersectStart + (intersectWidth * randPercent) - corridorWidth;
+    }
+    else
+    {
+        corridorStartPoint = intersectStart + (intersectWidth * randPercent);
+    }
+    if (isSlicedOnXAxis)
+    {
+        corridor->startPos = (Vector2){room1.endPos.x, corridorStartPoint};
+        corridor->endPos = (Vector2){room2.startPos.x, corridorStartPoint + corridorWidth};
+#ifdef DEV_MODE
+        printf("room 1 end pos x: %f, room 2 start pos x: %f\n", room1.endPos.x, room2.startPos.x);
+#endif
+    }
+    else
+    {
+        corridor->startPos = (Vector2){corridorStartPoint, room1.endPos.y};
+        corridor->endPos = (Vector2){corridorStartPoint + corridorWidth, room2.startPos.y};
+    }
 }
 
 void GenerateRoom(rect_t *room, rect_t area)
@@ -236,10 +251,11 @@ void GenerateBSPMapSections(int iterationCount, int desiredIterations, mapSectio
 #ifdef DEV_MODE
         printf("all iterations complete: iterations: %d, desired iterations: %d\n",
                iterationCount, desiredIterations);
+
 #endif
         GenerateRoom(&mapSection->splitMapSections[0].room, mapSection->splitMapSections[0].area);
         GenerateRoom(&mapSection->splitMapSections[1].room, mapSection->splitMapSections[1].area);
-        bool isSplitOnXAxis = mapSection->splitMapSections[0].room.startPos.x == mapSection->splitMapSections[1].room.startPos.x;
+        bool isSplitOnXAxis = mapSection->splitMapSections[0].area.startPos.y == mapSection->splitMapSections[1].area.startPos.y;
         GenerateCorridor(isSplitOnXAxis, mapSection->splitMapSections[0].room, mapSection->splitMapSections[1].room, &mapSection->splitMapSecionsCorridor);
         // return;
     }
