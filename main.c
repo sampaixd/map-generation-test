@@ -19,7 +19,7 @@ const int xySplitRandomizer = 8;
 int xySplitRandomizerThreshold = xySplitRandomizer / 2; // will get bigger/smaller depending on the previous split, this is used to avoid too many x/y slices happening after one another
 const float roomMarginPercentage = 0.1;                 // 1% percision, will be rounded afterwards
 const float roomMinSizePercentage = 0.5;                // 1% percision, will be rounded afterwards
-const float corridorWidth = 20;                         // set size for corridors
+const float constCorridorWidth = 20;                         // set size for corridors
 
 typedef struct rect_t
 {
@@ -130,10 +130,16 @@ void GenerateCorridor(bool isSlicedOnXAxis, rect_t room1, rect_t room2, rect_t *
     float randPercent = ((float)(rand() % 100) / 100);
     // if the start posision + corridor width would go outside the intersecting bonds, subtract the corridor width from total
     float corridorStartPoint;
+    float corridorWidth = constCorridorWidth;
+    // if intersection width is smaller than corridor width, reduce corridor width
+    if (intersectWidth <= constCorridorWidth) {
+        corridorStartPoint = intersectStart;
+        corridorWidth -= (constCorridorWidth - intersectWidth);
+    }
     // if the corridor would go outside intersecting bounds
-    if (randPercent * intersectWidth > intersectWidth - corridorWidth)
+    else if (randPercent * intersectWidth >= intersectWidth - corridorWidth)
     {
-        corridorStartPoint = intersectStart + (intersectWidth * randPercent) - corridorWidth;
+        corridorStartPoint = intersectStart + intersectWidth - corridorWidth;
     }
     else
     {
