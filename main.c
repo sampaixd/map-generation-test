@@ -4,14 +4,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define DEV_MODE // comment out to remove dev text
+//#define DEV_MODE // comment out to remove dev text
 
 // TODO continue work with corridors
 // make corridors work with all iterations of the map generation
 // (currently only works with the last iteration)
 // split up the large one line equations to multiple smaller lines for improved readability
-const int screenHeight = 1080;
-const int screenWidth = 1920;
+const int screenHeight = 720;
+const int screenWidth = 1280;
 const int targetFPS = 60;
 const float mapSectionMarginPercentage = 0.3; // how many % magin from other map sections (1 = 100%)
 const int iterations = 3;                     // iterations for the generator
@@ -87,7 +87,6 @@ void DrawBSPMapSections(int iterationCount, int desiredIterations, mapSection_t 
     {
         DrawRoom(mapSection.splitMapSections[0].room);
         DrawRoom(mapSection.splitMapSections[1].room);
-        
     }
     else
     {
@@ -109,61 +108,111 @@ void DrawBSPMapSections(int iterationCount, int desiredIterations, mapSection_t 
 #endif
 }
 // early idea of getting valid intersects for bigger map section corridors
-void GetIntersect(rect_t *validIntersects, int* validIntersectsPointer, rect_t room1, rect_t room2, bool isSlicedOnXAxis) {
-    if (isSlicedOnXAxis) {
+void GetIntersect(rect_t *validIntersects, int *validIntersectsPointer, rect_t room1, rect_t room2, bool isSlicedOnXAxis)
+{
+    if (isSlicedOnXAxis)
+    {
         // if intersect is valid
-        if (room1.startPos.y > room2.endPos.y + constCorridorWidth ||
-            room2.startPos.y > room1.endPos.y + constCorridorWidth) {
-                return;
-            }
-        float intersectStart = room1.startPos.y > room2.startPos.y ? room1.startPos.y : room2.startPos.y;
+        if (room1.startPos.y > room2.endPos.y ||
+            room2.startPos.y > room1.endPos.y)
+        {
+            return;
+        }
+        float intersectStart = room1.startPos.y < room2.startPos.y ? room1.startPos.y : room2.startPos.y;
         float intersectEnd = room1.endPos.y < room2.endPos.y ? room1.endPos.y : room2.endPos.y;
         // the intersect is in its respective cordinate, the distance between rooms is in the other cordinate
         rect_t validIntersect = (rect_t){
-            (Vector2) {room1.endPos.x, intersectStart},
-            (Vector2) {room2.startPos.x, intersectEnd}
-        };
+            (Vector2){room1.endPos.x, intersectStart},
+            (Vector2){room2.startPos.x, intersectEnd}};
         // the idea is to get a array of valid intersects, pick one by random and then get a random position inside that valid intersect
-        validIntersects[*validIntersectsPointer++] = validIntersect;
-    }   
-    else {
-        if (room1.startPos.x > room2.endPos.x + constCorridorWidth ||
-            room2.startPos.x > room1.endPos.x + constCorridorWidth) {
-                return;
-            }
-        float intersectStart = room1.startPos.x > room2.startPos.x ? room1.startPos.x : room2.startPos.x;
-        float intersectEnd = room1.endPos.x < room2.endPos.x ? room1.endPos.x : room2.endPos.x;
-        rect_t validIntersect = (rect_t){
-            (Vector2) {intersectStart, room1.startPos.y},
-            (Vector2) {intersectEnd, room2.endPos.y}
-        };
-        validIntersects[*validIntersectsPointer++] = validIntersect;
-    }
-}
-
-void GenerateCorridor(bool isSlicedOnXAxis, mapSection_t *mapSection, int currentIteration)
-{
-#ifdef DEV_MODE
-    printf("is sliced on x axis: %d\n"
-           "current iteration:   %d\n", 
-           isSlicedOnXAxis, currentIteration);
-#endif
-
-    rect_t room1 = mapSection->splitMapSections[0].room;
-    rect_t room2 = mapSection->splitMapSections[1].room;
-    float intersectStart = 0;
-    float intersectEnd = 0;
-    if (isSlicedOnXAxis)
-    {
-        // gets the section where they are adjacent to one another
-        intersectStart = room1.startPos.y > room2.startPos.y ? room1.startPos.y : room2.startPos.y;
-        intersectEnd = room1.endPos.y < room2.endPos.y ? room1.endPos.y : room2.endPos.y;
+        validIntersects[*validIntersectsPointer] = validIntersect;
+        *validIntersectsPointer = *validIntersectsPointer + 1;
     }
     else
     {
-        intersectStart = room1.startPos.x > room2.startPos.x ? room1.startPos.x : room2.startPos.x;
-        intersectEnd = room1.endPos.x < room2.endPos.x ? room1.endPos.x : room2.endPos.x;
+        if (room1.startPos.x > room2.endPos.x ||
+            room2.startPos.x > room1.endPos.x)
+        {
+            return;
+        }
+        float intersectStart = room1.startPos.x > room2.startPos.x ? room1.startPos.x : room2.startPos.x;
+        float intersectEnd = room1.endPos.x < room2.endPos.x ? room1.endPos.x : room2.endPos.x;
+        rect_t validIntersect = (rect_t){
+            (Vector2){intersectStart, room1.endPos.y},
+            (Vector2){intersectEnd, room2.startPos.y}};
+        validIntersects[*validIntersectsPointer] = validIntersect;
+        *validIntersectsPointer = *validIntersectsPointer + 1;
     }
+    printf("intersect pointer inside getIntersect: %d\n", *validIntersectsPointer);
+}
+
+void FindValidCorridorTargets(int currentIteration, mapSection_t mapSection, rect_t *targets, int *targetsPointer, bool isSplitOnXAxis, bool isRightOrBelow)
+{
+    puts("wee 0");
+    printf("current iteration: %d\n", currentIteration);
+    bool currentIsSplitOnXAxis = mapSection.splitMapSections[0].area.startPos.y == mapSection.splitMapSections[1].area.startPos.y;
+    puts("wee 1");
+    if (currentIteration < iterations - 1)
+    {
+        puts("wee 2");
+        // checks if they are split on the same axis
+        if (currentIsSplitOnXAxis == isSplitOnXAxis)
+        {
+            currentIteration++;
+            targets[*targetsPointer++] = mapSection.corridor;
+            FindValidCorridorTargets(currentIteration, mapSection.splitMapSections[0], targets, targetsPointer, isSplitOnXAxis, isRightOrBelow);
+            FindValidCorridorTargets(currentIteration, mapSection.splitMapSections[1], targets, targetsPointer, isSplitOnXAxis, isRightOrBelow);
+        }
+        else
+        {
+            currentIteration++;
+            // if isLeftOrAbove is true then the adjacent room is 0, otherwise its 1
+            FindValidCorridorTargets(currentIteration, mapSection.splitMapSections[isRightOrBelow], targets, targetsPointer, isSplitOnXAxis, isRightOrBelow);
+        }
+        puts("wee 3");
+    }
+    else
+    {
+        puts("wee 4");
+        if (currentIsSplitOnXAxis == isSplitOnXAxis)
+        {
+            targets[*targetsPointer] = mapSection.corridor;
+            *targetsPointer += 1;
+            targets[*targetsPointer] = mapSection.splitMapSections[0].room;
+            *targetsPointer += 1;
+            targets[*targetsPointer] = mapSection.splitMapSections[1].room;
+            *targetsPointer += 1;
+        }
+        else
+        {
+            targets[*targetsPointer] = mapSection.splitMapSections[isRightOrBelow].room;
+            *targetsPointer += 1;
+        }
+        puts("wee 5");
+    }
+}
+
+void GenerateCorridor(bool isSlicedOnXAxis, mapSection_t *mapSection, rect_t randIntersect)
+{
+#ifdef DEV_MODE
+    printf("is sliced on x axis: %d\n"
+           "current iteration:   %d\n",
+           isSlicedOnXAxis, currentIteration);
+#endif
+    puts("waa 1");
+    int intersectStart = 0;
+    int intersectEnd = 0;
+    if (isSlicedOnXAxis)
+    {
+        intersectStart = randIntersect.startPos.y;
+        intersectEnd = randIntersect.endPos.y;
+    }
+    else
+    {
+        intersectStart = randIntersect.startPos.x;
+        intersectEnd = randIntersect.endPos.x;
+    }
+    puts("waa 2");
     float intersectWidth = intersectEnd - intersectStart;
     float randPercent = ((float)(rand() % 100) / 100);
     // if the start posision + corridor width would go outside the intersecting bonds, subtract the corridor width from total
@@ -184,10 +233,11 @@ void GenerateCorridor(bool isSlicedOnXAxis, mapSection_t *mapSection, int curren
     {
         corridorStartPoint = intersectStart + (intersectWidth * randPercent);
     }
+    puts("waa 3");
     if (isSlicedOnXAxis)
     {
-        mapSection->corridor.startPos = (Vector2){room1.endPos.x, corridorStartPoint};
-        mapSection->corridor.endPos = (Vector2){room2.startPos.x, corridorStartPoint + corridorWidth};
+        mapSection->corridor.startPos = (Vector2){randIntersect.startPos.x, corridorStartPoint};
+        mapSection->corridor.endPos = (Vector2){randIntersect.endPos.x, corridorStartPoint + corridorWidth};
 
 #ifdef DEV_MODE
         printf("room 1 end pos x: %f, room 2 start pos x: %f\n", room1.endPos.x, room2.startPos.x);
@@ -195,17 +245,18 @@ void GenerateCorridor(bool isSlicedOnXAxis, mapSection_t *mapSection, int curren
     }
     else
     {
-        mapSection->corridor.startPos = (Vector2){corridorStartPoint, room1.endPos.y};
-        mapSection->corridor.endPos = (Vector2){corridorStartPoint + corridorWidth, room2.startPos.y};
+        mapSection->corridor.startPos = (Vector2){corridorStartPoint, randIntersect.startPos.y};
+        mapSection->corridor.endPos = (Vector2){corridorStartPoint + corridorWidth, randIntersect.endPos.y};
     }
+    puts("waa 4");
 
-    float smallestX = room1.startPos.x < room2.startPos.x ? room1.startPos.x : room2.startPos.x;
+    /*float smallestX = room1.startPos.x < room2.startPos.x ? room1.startPos.x : room2.startPos.x;
     float smallestY = room1.startPos.y < room2.startPos.y ? room1.startPos.y : room2.startPos.y;
     float biggestX = room1.endPos.x > room2.endPos.x ? room1.endPos.x : room2.endPos.x;
     float biggestY = room1.endPos.y > room2.endPos.y ? room2.endPos.y : room2.endPos.y;
     Vector2 totalRoomSizeStartPos = (Vector2){smallestX, smallestY};
     Vector2 totalRoomSizeEndPos = (Vector2){biggestX, biggestY};
-    mapSection->room = (rect_t){totalRoomSizeStartPos, totalRoomSizeEndPos};
+    mapSection->room = (rect_t){totalRoomSizeStartPos, totalRoomSizeEndPos};*/
 }
 
 void GenerateRoom(rect_t *room, rect_t area)
@@ -308,7 +359,11 @@ void GenerateBSPMapSections(int iterationCount, int desiredIterations, mapSectio
 #endif
         GenerateRoom(&mapSection->splitMapSections[0].room, mapSection->splitMapSections[0].area);
         GenerateRoom(&mapSection->splitMapSections[1].room, mapSection->splitMapSections[1].area);
-
+        bool isSplitOnXAxis = mapSection->splitMapSections[0].area.startPos.y == mapSection->splitMapSections[1].area.startPos.y;
+        rect_t intersect[1]; // = {(Vector2){0, 0}, (Vector2){0, 0}};
+        int temp = 0;
+        GetIntersect(intersect, &temp, mapSection->splitMapSections[0].room, mapSection->splitMapSections[1].room, isSplitOnXAxis);
+        GenerateCorridor(isSplitOnXAxis, mapSection, intersect[0]);
         // return;
     }
     else
@@ -316,9 +371,36 @@ void GenerateBSPMapSections(int iterationCount, int desiredIterations, mapSectio
         iterationCount++;
         GenerateBSPMapSections(iterationCount, desiredIterations, (mapSection->splitMapSections));
         GenerateBSPMapSections(iterationCount, desiredIterations, (mapSection->splitMapSections + 1));
+        iterationCount--;
+        puts("woo 1");
+        bool isSplitOnXAxis = mapSection->splitMapSections[0].area.startPos.y == mapSection->splitMapSections[1].area.startPos.y;
+        puts("woo 2");
+        rect_t leftOrAboveValidCorridorTargets[100];
+        int leftOrAboveValidCorridorTargetsPointer = 0;
+        rect_t rightOrBelowValidCorridorTargets[100];
+        int rightOrBelowValidCorridorTargetsPointer = 0;
+        puts("woo 3");
+        FindValidCorridorTargets(iterationCount, mapSection->splitMapSections[0], leftOrAboveValidCorridorTargets, &leftOrAboveValidCorridorTargetsPointer, isSplitOnXAxis, false);
+        puts("woo 3,5");
+        FindValidCorridorTargets(iterationCount, mapSection->splitMapSections[1], rightOrBelowValidCorridorTargets, &rightOrBelowValidCorridorTargetsPointer, isSplitOnXAxis, true);
+        puts("woo 4");
+        rect_t validIntersects[leftOrAboveValidCorridorTargetsPointer + rightOrBelowValidCorridorTargetsPointer];
+        int validIntersectsPointer = 0;
+        puts("woo 5");
+        for (int l = 0; l < leftOrAboveValidCorridorTargetsPointer; l++)
+        {
+            for (int r = 0; r < rightOrBelowValidCorridorTargetsPointer; r++)
+            {
+                GetIntersect(validIntersects, &validIntersectsPointer, leftOrAboveValidCorridorTargets[l], rightOrBelowValidCorridorTargets[r], isSplitOnXAxis);
+            }
+        }
+        puts("woo 6");
+        printf("intersect pointer: %d\n", validIntersectsPointer);
+        int randIntersectTarget = rand() % validIntersectsPointer + 1;
+        puts("woo 6.5");
+        GenerateCorridor(isSplitOnXAxis, mapSection, validIntersects[0]);
+        puts("woo 7");
     }
-    bool isSplitOnXAxis = mapSection->splitMapSections[0].area.startPos.y == mapSection->splitMapSections[1].area.startPos.y;
-    GenerateCorridor(isSplitOnXAxis, mapSection, iterationCount);
 }
 
 int main()
