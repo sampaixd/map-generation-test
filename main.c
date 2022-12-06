@@ -20,6 +20,7 @@ int xySplitRandomizerThreshold = xySplitRandomizer / 2; // will get bigger/small
 const float roomMarginPercentage = 0.1;                 // 1% percision, will be rounded afterwards
 const float roomMinSizePercentage = 0.5;                // 1% percision, will be rounded afterwards
 const float constCorridorWidth = 20;                    // set size for corridors
+const float minCorridorWidth = 10;                      // min size tolerance for valid intersects
 
 typedef struct rect_t
 {
@@ -82,8 +83,9 @@ void DrawRoom(rect_t room)
 
 void DrawBSPMapSections(int iterationCount, int desiredIterations, mapSection_t mapSection, Color *color, int colorIndex)
 {
-
+#ifdef DEV_MODE
     DrawLineV(mapSection.splitMapSections[0].area.endPos, mapSection.splitMapSections[1].area.startPos, color[colorIndex]);
+#endif
     if (iterationCount >= desiredIterations)
     {
         DrawRoom(mapSection.splitMapSections[0].room);
@@ -91,11 +93,11 @@ void DrawBSPMapSections(int iterationCount, int desiredIterations, mapSection_t 
     }
     else
     {
-        
+
         iterationCount++;
         colorIndex++;
         DrawBSPMapSections(iterationCount, desiredIterations, mapSection.splitMapSections[0], color, colorIndex);
-        
+
         DrawBSPMapSections(iterationCount, desiredIterations, mapSection.splitMapSections[1], color, colorIndex);
     }
     DrawCorridor(mapSection.corridor);
@@ -114,8 +116,8 @@ void GetIntersect(rect_t *validIntersects, int *validIntersectsPointer, rect_t r
     if (isSlicedOnXAxis)
     {
         // if intersect is valid
-        if (room1.startPos.y > room2.endPos.y ||
-            room2.startPos.y > room1.endPos.y)
+        if (room1.startPos.y > room2.endPos.y - minCorridorWidth ||
+            room2.startPos.y > room1.endPos.y - minCorridorWidth)
         {
             return;
         }
@@ -131,8 +133,8 @@ void GetIntersect(rect_t *validIntersects, int *validIntersectsPointer, rect_t r
     }
     else
     {
-        if (room1.startPos.x > room2.endPos.x ||
-            room2.startPos.x > room1.endPos.x)
+        if (room1.startPos.x > room2.endPos.x - minCorridorWidth ||
+            room2.startPos.x > room1.endPos.x - minCorridorWidth)
         {
             return;
         }
@@ -141,7 +143,7 @@ void GetIntersect(rect_t *validIntersects, int *validIntersectsPointer, rect_t r
         rect_t validIntersect = (rect_t){
             (Vector2){intersectStart, room1.endPos.y},
             (Vector2){intersectEnd, room2.startPos.y}};
-                validIntersects[*validIntersectsPointer] = validIntersect;
+        validIntersects[*validIntersectsPointer] = validIntersect;
         *validIntersectsPointer += 1;
     }
     printf("intersect pointer inside getIntersect: %d\n", *validIntersectsPointer);
@@ -160,7 +162,7 @@ void FindValidCorridorTargets(int currentIteration, mapSection_t mapSection, rec
         if (currentIsSplitOnXAxis != isSplitOnXAxis)
         {
             currentIteration++;
-            //targets[*targetsPointer] = mapSection.corridor;
+            // targets[*targetsPointer] = mapSection.corridor;
             //*targetsPointer += 1;
             FindValidCorridorTargets(currentIteration, mapSection.splitMapSections[0], targets, targetsPointer, isSplitOnXAxis, isLeftOrAbove);
             FindValidCorridorTargets(currentIteration, mapSection.splitMapSections[1], targets, targetsPointer, isSplitOnXAxis, isLeftOrAbove);
@@ -179,7 +181,7 @@ void FindValidCorridorTargets(int currentIteration, mapSection_t mapSection, rec
         if (currentIsSplitOnXAxis != isSplitOnXAxis)
         {
             targets[*targetsPointer] = mapSection.corridor;
-              *targetsPointer += 1;
+            *targetsPointer += 1;
             targets[*targetsPointer] = mapSection.splitMapSections[0].room;
             *targetsPointer += 1;
             targets[*targetsPointer] = mapSection.splitMapSections[1].room;
@@ -377,7 +379,7 @@ void GenerateBSPMapSections(int iterationCount, int desiredIterations, mapSectio
         puts("woo 3,5");
         FindValidCorridorTargets(iterationCount, mapSection->splitMapSections[1], rightOrBelowValidCorridorTargets, &rightOrBelowValidCorridorTargetsPointer, isSplitOnXAxis, false);
         puts("woo 4");
-        rect_t validIntersects[200]; 
+        rect_t validIntersects[200];
         int validIntersectsPointer = 0;
         puts("woo 5");
         for (int l = 0; l < leftOrAboveValidCorridorTargetsPointer; l++)
@@ -401,7 +403,7 @@ int main()
     srand(time(NULL));
     InitWindow(screenWidth, screenHeight, "map generation test");
     SetTargetFPS(targetFPS);
-
+    
     mapSection_t map = (mapSection_t){
         .area.startPos = (Vector2){0, 0},
         .area.endPos = (Vector2){screenWidth, screenHeight},
@@ -412,12 +414,15 @@ int main()
     {
         BeginDrawing();
         ClearBackground(BLACK);
+        if (IsKeyPressed(KEY_F)) {
+            ToggleFullscreen();
+        }
         if (IsKeyPressed(KEY_SPACE))
         {
             FreeBSPMap(0, iterations, &map);
             GenerateBSPMapSections(0, iterations, &map);
         }
-        Color colors[]  = {RED, YELLOW, GREEN, BLUE};
+        Color colors[] = {RED, YELLOW, GREEN, BLUE};
         DrawBSPMapSections(0, iterations, map, colors, 0);
         EndDrawing();
     }
