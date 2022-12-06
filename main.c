@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define DEV_MODE // comment out to remove dev text
+//#define DEV_MODE // comment out to remove dev text
 
 // TODO continue work with corridors
 // make corridors work with all iterations of the map generation
@@ -160,8 +160,8 @@ void FindValidCorridorTargets(int currentIteration, mapSection_t mapSection, rec
         if (currentIsSplitOnXAxis != isSplitOnXAxis)
         {
             currentIteration++;
-            targets[*targetsPointer] = mapSection.corridor;
-            *targetsPointer += 1;
+            //targets[*targetsPointer] = mapSection.corridor;
+            //*targetsPointer += 1;
             FindValidCorridorTargets(currentIteration, mapSection.splitMapSections[0], targets, targetsPointer, isSplitOnXAxis, isLeftOrAbove);
             FindValidCorridorTargets(currentIteration, mapSection.splitMapSections[1], targets, targetsPointer, isSplitOnXAxis, isLeftOrAbove);
         }
@@ -176,7 +176,7 @@ void FindValidCorridorTargets(int currentIteration, mapSection_t mapSection, rec
     else
     {
         puts("wee 4");
-        if (currentIsSplitOnXAxis == isSplitOnXAxis)
+        if (currentIsSplitOnXAxis != isSplitOnXAxis)
         {
             targets[*targetsPointer] = mapSection.corridor;
               *targetsPointer += 1;
@@ -414,6 +414,7 @@ int main()
         ClearBackground(BLACK);
         if (IsKeyPressed(KEY_SPACE))
         {
+            FreeBSPMap(0, iterations, &map);
             GenerateBSPMapSections(0, iterations, &map);
         }
         Color colors[]  = {RED, YELLOW, GREEN, BLUE};
