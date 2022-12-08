@@ -6,16 +6,13 @@
 
 //#define DEV_MODE // comment out to remove dev text
 
-// TODO continue work with corridors
-// make corridors work with all iterations of the map generation
-// (currently only works with the last iteration)
 // split up the large one line equations to multiple smaller lines for improved readability
 const int screenHeight = 1080;
 const int screenWidth = 1920;
 const int targetFPS = 60;
-const float mapSectionMarginPercentage = 0.3; // how many % magin from other map sections (1 = 100%)
-const int iterations = 3;                     // iterations for the generator
-const int xySplitRandomizer = 12;
+const float mapSectionMarginPercentage = 0.3;           // how many % magin from other map sections (1 = 100%)
+const int iterations = 3;                               // iterations for the generator
+const int xySplitRandomizer = 12;                       // the max value for the x split randomizer
 int xySplitRandomizerThreshold = xySplitRandomizer / 2; // will get bigger/smaller depending on the previous split, this is used to avoid too many x/y slices happening after one another
 const float roomMarginPercentage = 0.1;                 // 1% percision, will be rounded afterwards
 const float roomMinSizePercentage = 0.5;                // 1% percision, will be rounded afterwards
@@ -110,7 +107,7 @@ void DrawBSPMapSections(int iterationCount, int desiredIterations, mapSection_t 
              mapSection.splitMapSections[1].area.startPos.y, 10, LIME);
 #endif
 }
-// early idea of getting valid intersects for bigger map section corridors
+// gets valid corridor placements and returns them as rects of the total valid area
 void GetIntersect(rect_t *validIntersects, int *validIntersectsPointer, rect_t room1, rect_t room2, bool isSlicedOnXAxis)
 {
     if (isSlicedOnXAxis)
@@ -146,18 +143,19 @@ void GetIntersect(rect_t *validIntersects, int *validIntersectsPointer, rect_t r
         validIntersects[*validIntersectsPointer] = validIntersect;
         *validIntersectsPointer += 1;
     }
+#ifdef DEV_MODE
     printf("intersect pointer inside getIntersect: %d\n", *validIntersectsPointer);
+#endif
 }
 
 void FindValidCorridorTargets(int currentIteration, mapSection_t mapSection, rect_t *targets, int *targetsPointer, bool isSplitOnXAxis, bool isLeftOrAbove)
 {
-    puts("wee 0");
+#ifdef DEV_MODE
     printf("current iteration: %d\n", currentIteration);
+#endif
     bool currentIsSplitOnXAxis = mapSection.splitMapSections[0].area.startPos.y == mapSection.splitMapSections[1].area.startPos.y;
-    puts("wee 1");
     if (currentIteration < iterations - 1)
     {
-        puts("wee 2");
         // checks if they are split on the same axis
         if (currentIsSplitOnXAxis != isSplitOnXAxis)
         {
@@ -173,11 +171,9 @@ void FindValidCorridorTargets(int currentIteration, mapSection_t mapSection, rec
             // if isLeftOrAbove is true then the adjacent room is 0, otherwise its 1
             FindValidCorridorTargets(currentIteration, mapSection.splitMapSections[isLeftOrAbove], targets, targetsPointer, isSplitOnXAxis, isLeftOrAbove);
         }
-        puts("wee 3");
     }
     else
     {
-        puts("wee 4");
         if (currentIsSplitOnXAxis != isSplitOnXAxis)
         {
             targets[*targetsPointer] = mapSection.corridor;
@@ -192,7 +188,6 @@ void FindValidCorridorTargets(int currentIteration, mapSection_t mapSection, rec
             targets[*targetsPointer] = mapSection.splitMapSections[isLeftOrAbove].room;
             *targetsPointer += 1;
         }
-        puts("wee 5");
     }
 }
 
@@ -202,7 +197,6 @@ void GenerateCorridor(bool isSlicedOnXAxis, mapSection_t *mapSection, rect_t ran
     printf("is sliced on x axis: %d\n",
            isSlicedOnXAxis);
 #endif
-    puts("waa 1");
     int intersectStart = 0;
     int intersectEnd = 0;
     if (isSlicedOnXAxis)
@@ -215,7 +209,6 @@ void GenerateCorridor(bool isSlicedOnXAxis, mapSection_t *mapSection, rect_t ran
         intersectStart = randIntersect.startPos.x;
         intersectEnd = randIntersect.endPos.x;
     }
-    puts("waa 2");
     float intersectWidth = intersectEnd - intersectStart;
     float randPercent = ((float)(rand() % 100) / 100);
     // if the start posision + corridor width would go outside the intersecting bonds, subtract the corridor width from total
@@ -236,11 +229,12 @@ void GenerateCorridor(bool isSlicedOnXAxis, mapSection_t *mapSection, rect_t ran
     {
         corridorStartPoint = intersectStart + (intersectWidth * randPercent);
     }
-    puts("waa 3");
     if (isSlicedOnXAxis)
     {
-        mapSection->corridor.startPos = (Vector2){randIntersect.startPos.x, corridorStartPoint};
-        mapSection->corridor.endPos = (Vector2){randIntersect.endPos.x, corridorStartPoint + corridorWidth};
+        mapSection->corridor.startPos = (Vector2){randIntersect.startPos.x,
+                                                  corridorStartPoint};
+        mapSection->corridor.endPos = (Vector2){randIntersect.endPos.x,
+                                                corridorStartPoint + corridorWidth};
 
 #ifdef DEV_MODE
         printf("rand intersect end pos x: %f, rand intersect start pos x: %f\n", randIntersect.startPos.x, randIntersect.endPos.x);
@@ -248,10 +242,11 @@ void GenerateCorridor(bool isSlicedOnXAxis, mapSection_t *mapSection, rect_t ran
     }
     else
     {
-        mapSection->corridor.startPos = (Vector2){corridorStartPoint, randIntersect.startPos.y};
-        mapSection->corridor.endPos = (Vector2){corridorStartPoint + corridorWidth, randIntersect.endPos.y};
+        mapSection->corridor.startPos = (Vector2){corridorStartPoint,
+                                                  randIntersect.startPos.y};
+        mapSection->corridor.endPos = (Vector2){corridorStartPoint + corridorWidth,
+                                                randIntersect.endPos.y};
     }
-    puts("waa 4");
 }
 
 void GenerateRoom(rect_t *room, rect_t area)
@@ -261,17 +256,46 @@ void GenerateRoom(rect_t *room, rect_t area)
 #endif
     float xWidth = area.endPos.x - area.startPos.x;
     float yWidth = area.endPos.y - area.startPos.y;
+    // the max extra percentage the room startpos can be from a wall
+    // roomMinSizePercentage is there to make sure there is enough space for the entire
+    // room, in the standard case with the roomSizeMinPercentage being 50%, there will
+    // always be a 50% + roomMarginPercentage space left for the room after its
+    // start position
+    float randMaxPercentage = 1 - (2 * roomMarginPercentage) - roomMinSizePercentage;
+    // the room has a garuantee of spawning atlast roomMarginPercentage from all walls,
+    // but this gives it the ability to spawn further from the walls (for example if
+    // roomMarginPercentage is 10%, spawning 10% + 21% away from walls)
+    float xRoomRandExtraStartDistance = (float)(rand() % (int)(randMaxPercentage * 100) / 100);
+    float yRoomRandExtraStartDistance = (float)(rand() % (int)(randMaxPercentage * 100) / 100);
     Vector2 startPos = {
-        // base value is beginning of the section + margin, then adds a random sum between 0 and the map section width - margin and min size (in order to make sure there will always be a min size available)
-        area.startPos.x + (xWidth * roomMarginPercentage) + xWidth * ((float)(rand() % (int)(100 - (2 * roomMarginPercentage * 100) - (roomMinSizePercentage * 100))) / 100),
-        area.startPos.y + (yWidth * roomMarginPercentage) + yWidth * ((float)(rand() % (int)(100 - (2 * roomMarginPercentage * 100) - (roomMinSizePercentage * 100))) / 100)};
+        // base value is beginning of the section + margin, then adds a random sum defined above
+        area.startPos.x + (xWidth * roomMarginPercentage) + xWidth * xRoomRandExtraStartDistance,
+        area.startPos.y + (yWidth * roomMarginPercentage) + yWidth * yRoomRandExtraStartDistance};
 
+    float xFromSpaceStartToRoomStartPercentage = (startPos.x - area.startPos.x) / xWidth;
+    float minSizeAndMargin = roomMinSizePercentage + roomMarginPercentage;
     // mod 0 does not execute, eg you would get the entire rand() value
-    int xRandExtraSizeMaxPercentage = 100 - (roomMinSizePercentage * 100) - (roomMarginPercentage * 100) - (float)(((startPos.x - area.startPos.x) / xWidth) * 100);
-    float xEndPosExtraSize = xRandExtraSizeMaxPercentage > 0 ? xWidth * (float)((rand() % xRandExtraSizeMaxPercentage) / 100) : 0;
+    int xRandExtraSizeMaxPercentage = 100 - (minSizeAndMargin * 100) - (xFromSpaceStartToRoomStartPercentage * 100);
+    float xEndPosExtraSize = 0;
+    if (xRandExtraSizeMaxPercentage > 0)
+    {
+        xEndPosExtraSize = xWidth * (float)((rand() % xRandExtraSizeMaxPercentage) / 100);
+    }
+    else
+    {
+        xEndPosExtraSize = 0;
+    }
 
     int yRandExtraSizeMaxPercentage = 100 - (roomMinSizePercentage * 100) - (roomMarginPercentage * 100) - (float)(((startPos.y - area.startPos.y) / yWidth) * 100);
-    float yEndPosExtraSize = yRandExtraSizeMaxPercentage > 0 ? yWidth * (float)((rand() % yRandExtraSizeMaxPercentage) / 100) : 0;
+    float yEndPosExtraSize = 0;
+    if (yRandExtraSizeMaxPercentage > 0)
+    {
+        yEndPosExtraSize = yWidth * (float)((rand() % yRandExtraSizeMaxPercentage) / 100);
+    }
+    else
+    {
+        yEndPosExtraSize = 0;
+    }
 
     Vector2 endPos = {
         // base value is map section width * min size, then adds a random value between 0 and the distance from the startpos of the room to the end of the map section - margin
@@ -305,18 +329,17 @@ void GenerateBSPMapSections(int iterationCount, int desiredIterations, mapSectio
 #ifdef DEV_MODE
     printf("gen iteration: %d\n", iterationCount);
 #endif
-
+    // randoms between splitting on x axis or y axis, see threshold variable for more info
     if (rand() % xySplitRandomizer >= xySplitRandomizerThreshold)
     {
         xySplitRandomizerThreshold++;
 #ifdef DEV_MODE
         puts("split in x");
 #endif
-        // splits in random place with atleast a 20% margin to the top/bottom
+        // splits in random place with atleast a mapSectionMarginPercentage margin to the top/bottom
         float xWidth = mapSection->area.endPos.x - mapSection->area.startPos.x;
         float xSplit = (((rand() % (int)(xWidth * (1 - (mapSectionMarginPercentage * 2)))) * 100) / 100) + mapSection->area.startPos.x + (xWidth * mapSectionMarginPercentage);
-        // float xSplit = (((rand() % (int)((xWidth) * (1 - (0.8)))) * 100) / 100) + mapSection->area.startPos.x + ((xWidth) * 0.4);
-        //  float xSplit = (mapSection->area.startPos.x + mapSection->area.endPos.x) / 2;
+
         mapSection->splitMapSections[0] = (mapSection_t){
             .area.startPos = (Vector2){mapSection->area.startPos.x, mapSection->area.startPos.y},
             .area.endPos = (Vector2){xSplit, mapSection->area.endPos.y}};
@@ -333,8 +356,10 @@ void GenerateBSPMapSections(int iterationCount, int desiredIterations, mapSectio
 #endif
         // splits in random place with atleast a mapSectionMarginPercentage margin to the left/right
         float yWidth = mapSection->area.endPos.y - mapSection->area.startPos.y;
-        float ySplit = (((rand() % (int)(yWidth * (1 - (mapSectionMarginPercentage * 2)))) * 100) / 100) + mapSection->area.startPos.y + (yWidth * mapSectionMarginPercentage);
-        // float ySplit = (((rand() % (int)((yWidth) * (1 - (0.8)))) * 100) / 100) + mapSection->area.startPos.y + ((yWidth) * 0.4);
+        float maxRandSplitSize = yWidth * (1 - (mapSectionMarginPercentage * 2));
+        float minSplitSize = mapSection->area.startPos.y + (yWidth * mapSectionMarginPercentage);
+        
+        float ySplit = ((rand() % (int)((maxRandSplitSize) * 100)) / 100) + minSplitSize;
 
         // float ySplit = (mapSection->area.startPos.y + mapSection->area.endPos.y) / 2;
         mapSection->splitMapSections[0] = (mapSection_t){
@@ -355,7 +380,7 @@ void GenerateBSPMapSections(int iterationCount, int desiredIterations, mapSectio
         GenerateRoom(&mapSection->splitMapSections[0].room, mapSection->splitMapSections[0].area);
         GenerateRoom(&mapSection->splitMapSections[1].room, mapSection->splitMapSections[1].area);
         bool isSplitOnXAxis = mapSection->splitMapSections[0].area.startPos.y == mapSection->splitMapSections[1].area.startPos.y;
-        rect_t intersect[100]; // = {(Vector2){0, 0}, (Vector2){0, 0}};
+        rect_t intersect[(int)pow(2, iterations)];
         int temp = 0;
         GetIntersect(intersect, &temp, mapSection->splitMapSections[0].room, mapSection->splitMapSections[1].room, isSplitOnXAxis);
         GenerateCorridor(isSplitOnXAxis, mapSection, intersect[0]);
@@ -367,21 +392,15 @@ void GenerateBSPMapSections(int iterationCount, int desiredIterations, mapSectio
         GenerateBSPMapSections(iterationCount, desiredIterations, (mapSection->splitMapSections));
         GenerateBSPMapSections(iterationCount, desiredIterations, (mapSection->splitMapSections + 1));
         iterationCount--;
-        puts("woo 1");
         bool isSplitOnXAxis = mapSection->splitMapSections[0].area.startPos.y == mapSection->splitMapSections[1].area.startPos.y;
-        puts("woo 2");
-        rect_t leftOrAboveValidCorridorTargets[100];
+        rect_t leftOrAboveValidCorridorTargets[(int)pow(2, iterations)];
         int leftOrAboveValidCorridorTargetsPointer = 0;
-        rect_t rightOrBelowValidCorridorTargets[100];
+        rect_t rightOrBelowValidCorridorTargets[(int)pow(2, iterations)];
         int rightOrBelowValidCorridorTargetsPointer = 0;
-        puts("woo 3");
         FindValidCorridorTargets(iterationCount, mapSection->splitMapSections[0], leftOrAboveValidCorridorTargets, &leftOrAboveValidCorridorTargetsPointer, isSplitOnXAxis, true);
-        puts("woo 3,5");
         FindValidCorridorTargets(iterationCount, mapSection->splitMapSections[1], rightOrBelowValidCorridorTargets, &rightOrBelowValidCorridorTargetsPointer, isSplitOnXAxis, false);
-        puts("woo 4");
-        rect_t validIntersects[200];
+        rect_t validIntersects[(int)pow(4, iterations)];
         int validIntersectsPointer = 0;
-        puts("woo 5");
         for (int l = 0; l < leftOrAboveValidCorridorTargetsPointer; l++)
         {
             for (int r = 0; r < rightOrBelowValidCorridorTargetsPointer; r++)
@@ -389,12 +408,11 @@ void GenerateBSPMapSections(int iterationCount, int desiredIterations, mapSectio
                 GetIntersect(validIntersects, &validIntersectsPointer, leftOrAboveValidCorridorTargets[l], rightOrBelowValidCorridorTargets[r], isSplitOnXAxis);
             }
         }
-        puts("woo 6");
+#ifdef DEV_MODE
         printf("intersect pointer: %d\n", validIntersectsPointer);
+#endif
         int randIntersectTarget = rand() % validIntersectsPointer + 1;
-        puts("woo 6.5");
         GenerateCorridor(isSplitOnXAxis, mapSection, validIntersects[0]);
-        puts("woo 7");
     }
 }
 
@@ -403,7 +421,7 @@ int main()
     srand(time(NULL));
     InitWindow(screenWidth, screenHeight, "map generation test");
     SetTargetFPS(targetFPS);
-    
+
     mapSection_t map = (mapSection_t){
         .area.startPos = (Vector2){0, 0},
         .area.endPos = (Vector2){screenWidth, screenHeight},
@@ -414,14 +432,17 @@ int main()
     {
         BeginDrawing();
         ClearBackground(BLACK);
-        if (IsKeyPressed(KEY_F)) {
+        if (IsKeyPressed(KEY_F))
+        {
             ToggleFullscreen();
         }
+        // generate new map
         if (IsKeyPressed(KEY_SPACE))
         {
             FreeBSPMap(0, iterations, &map);
             GenerateBSPMapSections(0, iterations, &map);
         }
+        // colors is purely used for testing
         Color colors[] = {RED, YELLOW, GREEN, BLUE};
         DrawBSPMapSections(0, iterations, map, colors, 0);
         EndDrawing();
