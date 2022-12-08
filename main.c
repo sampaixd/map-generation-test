@@ -7,8 +7,8 @@
 //#define DEV_MODE // comment out to remove dev text
 
 // split up the large one line equations to multiple smaller lines for improved readability
-const int screenHeight = 1080;
-const int screenWidth = 1920;
+const int screenHeight = 720;
+const int screenWidth = 1280;
 const int targetFPS = 60;
 const float mapSectionMarginPercentage = 0.3;           // how many % magin from other map sections (1 = 100%)
 const int iterations = 3;                               // iterations for the generator
@@ -265,8 +265,8 @@ void GenerateRoom(rect_t *room, rect_t area)
     // the room has a garuantee of spawning atlast roomMarginPercentage from all walls,
     // but this gives it the ability to spawn further from the walls (for example if
     // roomMarginPercentage is 10%, spawning 10% + 21% away from walls)
-    float xRoomRandExtraStartDistance = (float)(rand() % (int)(randMaxPercentage * 100) / 100);
-    float yRoomRandExtraStartDistance = (float)(rand() % (int)(randMaxPercentage * 100) / 100);
+    float xRoomRandExtraStartDistance = (float)(rand() % (int)(randMaxPercentage * 100)) / 100;
+    float yRoomRandExtraStartDistance = (float)(rand() % (int)(randMaxPercentage * 100)) / 100;
     Vector2 startPos = {
         // base value is beginning of the section + margin, then adds a random sum defined above
         area.startPos.x + (xWidth * roomMarginPercentage) + xWidth * xRoomRandExtraStartDistance,
@@ -279,7 +279,7 @@ void GenerateRoom(rect_t *room, rect_t area)
     float xEndPosExtraSize = 0;
     if (xRandExtraSizeMaxPercentage > 0)
     {
-        xEndPosExtraSize = xWidth * (float)((rand() % xRandExtraSizeMaxPercentage) / 100);
+        xEndPosExtraSize = xWidth * (float)(rand() % xRandExtraSizeMaxPercentage) / 100;
     }
     else
     {
@@ -290,7 +290,7 @@ void GenerateRoom(rect_t *room, rect_t area)
     float yEndPosExtraSize = 0;
     if (yRandExtraSizeMaxPercentage > 0)
     {
-        yEndPosExtraSize = yWidth * (float)((rand() % yRandExtraSizeMaxPercentage) / 100);
+        yEndPosExtraSize = yWidth * (float)(rand() % yRandExtraSizeMaxPercentage) / 100;
     }
     else
     {
@@ -358,7 +358,7 @@ void GenerateBSPMapSections(int iterationCount, int desiredIterations, mapSectio
         float yWidth = mapSection->area.endPos.y - mapSection->area.startPos.y;
         float maxRandSplitSize = yWidth * (1 - (mapSectionMarginPercentage * 2));
         float minSplitSize = mapSection->area.startPos.y + (yWidth * mapSectionMarginPercentage);
-        
+
         float ySplit = ((rand() % (int)((maxRandSplitSize) * 100)) / 100) + minSplitSize;
 
         // float ySplit = (mapSection->area.startPos.y + mapSection->area.endPos.y) / 2;
